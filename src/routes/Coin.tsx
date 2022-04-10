@@ -1,4 +1,3 @@
-import { useState, useEffect } from "react";
 import {
   useParams,
   useLocation,
@@ -10,6 +9,8 @@ import {
 import styled from "styled-components";
 import Chart from "./Chart";
 import Price from "./Price";
+import { useQuery } from "react-query";
+import { fetchCoinInfo, fetchCoinPrice } from "../api";
 const Container = styled.div`
   padding: 0px 20px;
   max-width: 480px;
@@ -103,7 +104,7 @@ interface InfoData {
   last_data_at: string;
 }
 
-interface PriceData {
+interface TickersData {
   id: string;
   name: string;
   symbol: string;
@@ -138,35 +139,24 @@ interface PriceData {
 }
 
 const Coin = () => {
-  const [loading, setLoading] = useState<boolean>(true);
   const { coinId } = useParams<RouteParams>();
   const { state } = useLocation<RouteState>();
-  const [info, setInfo] = useState<InfoData>();
-  const [priceInfo, setPriceInfo] = useState<PriceData>();
   const priceMatch = useRouteMatch("/:coinId/price");
   const chartMatch = useRouteMatch("/:coinId/chart");
-
-  useEffect(() => {
-    (async () => {
-      const infoData = await (
-        await fetch(`https://api.coinpaprika.com/v1/coins/${coinId}`)
-      ).json();
-
-      const priceData = await (
-        await fetch(`https://api.coinpaprika.com/v1/tickers/${coinId}`)
-      ).json();
-
-      setInfo(infoData);
-      setPriceInfo(priceData);
-      setLoading(false);
-    })();
-  }, [coinId]);
-
+  const { isLoading: infoLoading, data: infoData } = useQuery<InfoData>(
+    ["info", coinId],
+    () => fetchCoinInfo(coinId)
+  );
+  const { isLoading: dataLoading, data: tickersData } = useQuery<TickersData>(
+    ["tickers", coinId],
+    () => fetchCoinPrice(coinId)
+  );
+  const loading = infoLoading || dataLoading;
   return (
     <Container>
       <Header>
         <Title>
-          {state?.name ? state.name : loading ? "Loading..." : info?.name}
+          {state?.name ? state.name : loading ? "Loading..." : infoData?.name}
         </Title>
       </Header>
       {loading ? (
@@ -175,23 +165,23 @@ const Coin = () => {
         <>
           <InfoList>
             <Info>
-              RANK :<span>{priceInfo?.rank}</span>
+              RANK :<span>{tickersData?.rank}</span>
             </Info>
             <Info>
-              SYMBOL :<span>${priceInfo?.symbol}</span>
+              SYMBOL :<span>${tickersData?.symbol}</span>
             </Info>
             <Info>
-              OPEN SOURCE :<span>{info?.open_source ? "Yes" : "No"}</span>
+              OPEN SOURCE :<span>{infoData?.open_source ? "Yes" : "No"}</span>
             </Info>
           </InfoList>
-          <Desc>{info?.description}</Desc>
+          <Desc>{infoData?.description}</Desc>
           <InfoList>
             <Info>
-              TOTAL SUPLY :<span>{priceInfo?.total_supply}</span>
+              TOTAL SUPLY :<span>{tickersData?.total_supply}</span>
             </Info>
 
             <Info>
-              MAX SUPLY :<span>{priceInfo?.max_supply}</span>
+              MAX SUPLY :<span>{tickersData?.max_supply}</span>
             </Info>
           </InfoList>
           <Tabs>
